@@ -4,6 +4,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.stereotype.Component;
 
 import com.sequenceiq.it.cloudbreak.util.CloudFunctionality;
@@ -12,6 +13,8 @@ import com.sequenceiq.it.cloudbreak.util.azure.azurevm.action.AzureClientActions
 
 @Component
 public class AzureCloudFunctionality implements CloudFunctionality {
+
+    private static final String AZURE_IMPLEMENTATION_MISSING = "AZURE implementation missing";
 
     @Inject
     private AzureClientActions azureClientActions;
@@ -42,6 +45,16 @@ public class AzureCloudFunctionality implements CloudFunctionality {
     @Override
     public void cloudStorageListContainer(String baseLocation) {
         azureCloudBlobUtil.listAllFoldersInAContaier(baseLocation);
+    }
+
+    @Override
+    public void cloudStorageListContainerFreeIPA(String baseLocation) {
+        throw new NotImplementedException(AZURE_IMPLEMENTATION_MISSING);
+    }
+
+    @Override
+    public void cloudStorageListContainerDataLake(String baseLocation) {
+
     }
 
     @Override

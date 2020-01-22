@@ -2,7 +2,6 @@ package com.sequenceiq.it.config;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import org.kohsuke.randname.RandomNameGenerator;
 import org.slf4j.Logger;
@@ -22,7 +21,6 @@ import org.springframework.util.StringUtils;
 import org.testng.TestNG;
 
 import com.sequenceiq.it.TestParameter;
-import com.sequenceiq.it.cloudbreak.spark.SparkServer;
 import com.sequenceiq.it.cloudbreak.spark.SparkServerPool;
 
 @Configuration
@@ -32,8 +30,14 @@ public class IntegrationTestConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestConfiguration.class);
 
-    @Value("${integrationtest.spark.sparkPoolSize:300}")
+    @Value("${integrationtest.spark.sparkPoolSize:30}")
     private int sparkPoolSize;
+
+    @Value("${mock.server.request.response.print:false}")
+    private boolean printRequestBody;
+
+    @Value("${mock.server.address:localhost}")
+    private String mockServerAddress;
 
     @Bean
     public static PropertyResourceConfigurer propertySourcesPlaceholderConfigurer() {
@@ -54,9 +58,7 @@ public class IntegrationTestConfiguration {
 
     @Bean
     public SparkServerPool sparkServerPool() {
-        SparkServerPool sparkServerPool = new SparkServerPool();
-        IntStream.range(0, sparkPoolSize).forEach(i -> sparkServerPool.put(new SparkServer()));
-        return sparkServerPool;
+        return new SparkServerPool(sparkPoolSize, printRequestBody, mockServerAddress);
     }
 
     @Bean

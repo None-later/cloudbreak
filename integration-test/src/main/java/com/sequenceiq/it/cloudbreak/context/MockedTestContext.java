@@ -1,6 +1,7 @@
 package com.sequenceiq.it.cloudbreak.context;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -14,7 +15,7 @@ import com.sequenceiq.it.cloudbreak.mock.ImageCatalogMockServerSetup;
 import com.sequenceiq.it.cloudbreak.mock.ThreadLocalProfiles;
 import com.sequenceiq.it.cloudbreak.spark.DynamicRouteStack;
 import com.sequenceiq.it.cloudbreak.spark.SparkServer;
-import com.sequenceiq.it.cloudbreak.spark.SparkServerFactory;
+import com.sequenceiq.it.cloudbreak.spark.SparkServerPool;
 
 @Prototype
 public class MockedTestContext extends TestContext implements MockTestContext {
@@ -25,7 +26,7 @@ public class MockedTestContext extends TestContext implements MockTestContext {
     private String mockServerAddress;
 
     @Inject
-    private SparkServerFactory sparkServerFactory;
+    private SparkServerPool sparkServerPool;
 
     @Inject
     private ImageCatalogMockServerSetup imageCatalogMockServerSetup;
@@ -40,8 +41,8 @@ public class MockedTestContext extends TestContext implements MockTestContext {
     @PostConstruct
     void init() throws InterruptedException {
         MockedTestContext.LOGGER.info("Creating mocked TestContext");
-        sparkServer = sparkServerFactory.construct();
-        MockedTestContext.LOGGER.info("MockedTestContext got spark server: {}", sparkServer);
+        sparkServer = sparkServerPool.pop();
+        MockedTestContext.LOGGER.info("MockedTestContext got spark server: {}", sparkServer.getEndpoint());
         imageCatalogMockServerSetup.configureImgCatalogWithExistingSparkServer(sparkServer);
         model = new DefaultModel();
         model.startModel(sparkServer.getSparkService(), mockServerAddress, ThreadLocalProfiles.getActiveProfiles());
@@ -69,15 +70,14 @@ public class MockedTestContext extends TestContext implements MockTestContext {
 
     @Override
     public void cleanupTestContext() {
-        LOGGER.info("MockedTestContext cleaned up. {}", sparkServer);
+        LOGGER.info("MockedTestContext cleaned up. {}", sparkServer.getEndpoint());
         super.cleanupTestContext();
-        sparkServerFactory.release(sparkServer);
-        setShutdown(true);
+        sparkServer.reset();
     }
 
-    public void close() {
-        LOGGER.info("MockedTestContext closed. {}", sparkServer);
-        sparkServerFactory.release(sparkServer);
-        setShutdown(true);
+    @PreDestroy
+    public void preDestroy() {
+        LOGGER.info("MockedTestContext destroyed. {}", sparkServer.getEndpoint());
+        sparkServerPool.put(sparkServer);
     }
 }

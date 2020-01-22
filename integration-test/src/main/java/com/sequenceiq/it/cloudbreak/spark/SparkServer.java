@@ -6,7 +6,6 @@ import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -31,28 +30,32 @@ public class SparkServer {
 
     private final Service sparkService;
 
-    private String endpoint;
+    private final String endpoint;
 
-    private Integer port;
+    private final boolean printRequestBody;
 
-    private boolean shutdown;
+    private int port;
 
-    public SparkServer() {
-        sparkService = Service.ignite();
-        shutdown = true;
-        endpoint = "init";
-        port = -1;
-    }
-
-    public void reset(String endpoint, File keystoreFile, int port, boolean printRequestBody) {
-        if (!shutdown) {
-            //throw new TestException("Mock is active! Could not reset.");
-            LOGGER.info("Mock is active! Could not reset.");
-        }
-        this.endpoint = endpoint;
+    public SparkServer(int port, File keystoreFile, String endpoint, boolean printRequestBody) {
         this.port = port;
+        this.endpoint = endpoint;
+        this.printRequestBody = printRequestBody;
+        sparkService = Service.ignite();
         sparkService.port(port);
         sparkService.secure(keystoreFile.getPath(), "secret", null, null);
+    }
+
+    public void reset() {
+        stop();
+        awaitStop();
+        init();
+        awaitInitialization();
+    }
+
+    public void init() {
+        callStack.clear();
+        requestResponseMap.clear();
+        sparkService.init();
         sparkService.before((req, res) -> res.type("application/json"));
         sparkService.after(
                 (request, response) -> {
@@ -72,29 +75,26 @@ public class SparkServer {
         return Collections.unmodifiableMap(requestResponseMap);
     }
 
-    public Vector<Call> getCallStack() {
-        return (Vector<Call>) callStack.clone();
-    }
-
     public String getEndpoint() {
-        return endpoint;
-    }
-
-    public Integer getPort() {
-        return port;
+        return "https://" + endpoint + ":" + port;
     }
 
     public Service getSparkService() {
         return sparkService;
     }
 
-    public void awaitInitialization() throws InterruptedException {
-        LOGGER.info("Spark service initialization in progress.");
+    public void awaitInitialization() {
+        LOGGER.info("Spark service initialization in progress on port: {}.", port);
 
         sparkService.awaitInitialization();
 
+        waitEndpointToBeReady(VALIDATIONCALL);
+        LOGGER.info("Spark service initialization finished on port {}.", port);
+    }
+
+    public void waitEndpointToBeReady(String path) {
         HttpHelper client = HttpHelper.getInstance();
-        String validationEndpoint = getEndpoint() + VALIDATIONCALL;
+        String validationEndpoint = getEndpoint() + path;
         Pair<javax.ws.rs.core.Response.StatusType, String> resultContent = null;
         Exception resultException = null;
         int count = 0;
@@ -107,7 +107,11 @@ public class SparkServer {
                 if (count++ > 30) {
                     break;
                 }
-                Thread.sleep(2000);
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    throw new TestException("Waiting for spark server failed", e);
+                }
             }
         }
         while (resultContent == null);
@@ -117,24 +121,18 @@ public class SparkServer {
         } else if (!resultContent.getKey().getReasonPhrase().equals("OK")) {
             throw new TestException("Waiting for spark server failed, http reason: " + resultContent.getKey().getReasonPhrase());
         }
-        LOGGER.info("Spark service initialization finished.");
     }
 
     public void awaitStop() {
         sparkService.awaitStop();
     }
 
-    public void init() {
-        callStack.clear();
-        requestResponseMap.clear();
-        sparkService.init();
-        shutdown = false;
+    public void stop() {
+        sparkService.stop();
     }
 
-    public void stop() {
-        shutdown = true;
-        endpoint = this + "spark has been stopped ";
-        sparkService.stop();
+    public int getPort() {
+        return port;
     }
 
     @Override

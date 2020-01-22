@@ -18,28 +18,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sequenceiq.cloudbreak.client.RestClientUtil;
-import com.sequenceiq.it.cloudbreak.Prototype;
 import com.sequenceiq.it.TestParameter;
+import com.sequenceiq.it.cloudbreak.Prototype;
 import com.sequenceiq.it.cloudbreak.spark.SparkServer;
-import com.sequenceiq.it.cloudbreak.spark.SparkServerFactory;
+import com.sequenceiq.it.cloudbreak.spark.SparkServerPool;
 
 @Prototype
-public class ImageCatalogMockServerSetup implements AutoCloseable {
+public class ImageCatalogMockServerSetup {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageCatalogMockServerSetup.class);
 
     @Inject
-    private SparkServerFactory sparkServerFactory;
+    private SparkServerPool sparkServerPool;
 
     @Inject
     private TestParameter testParameter;
 
     private SparkServer sparkServer;
-
-    public void configureImgCatalogMock() throws InterruptedException {
-        sparkServer = sparkServerFactory.construct();
-        startMockImageCatalogs();
-    }
 
     public void configureImgCatalogWithExistingSparkServer(SparkServer sparkServer) {
         this.sparkServer = sparkServer;
@@ -63,6 +58,7 @@ public class ImageCatalogMockServerSetup implements AutoCloseable {
             response.header("Content-Length", String.valueOf(imageCatalogText.length()));
             return "";
         });
+        sparkServer.waitEndpointToBeReady(url);
         LOGGER.info("ImageCatalog has started at: {}", sparkServer.getEndpoint() + url);
     }
 
@@ -101,11 +97,5 @@ public class ImageCatalogMockServerSetup implements AutoCloseable {
             LOGGER.error("Cannot fetch the CB version", e);
             throw e;
         }
-    }
-
-    @Override
-    public void close() {
-        sparkServerFactory.release(sparkServer);
-        LOGGER.info("ImageCatalog has stopped");
     }
 }

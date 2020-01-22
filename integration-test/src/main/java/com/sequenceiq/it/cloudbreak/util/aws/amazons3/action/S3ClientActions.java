@@ -33,12 +33,7 @@ public class S3ClientActions extends S3Client {
     public void deleteNonVersionedBucket(String baseLocation) {
         AmazonS3 s3Client = buildS3Client();
         String bucketName = getBucketName();
-        AmazonS3URI amazonS3URI = new AmazonS3URI(getEUWestS3Uri());
         String prefix = StringUtils.substringAfterLast(baseLocation, "/");
-
-        Log.log(LOGGER, format(" Amazon S3 URI: %s", amazonS3URI));
-        Log.log(LOGGER, format(" Amazon S3 Bucket: %s", bucketName));
-        Log.log(LOGGER, format(" Amazon S3 Key Prefix: %s", prefix));
 
         if (s3Client.doesBucketExistV2(bucketName)) {
             try {

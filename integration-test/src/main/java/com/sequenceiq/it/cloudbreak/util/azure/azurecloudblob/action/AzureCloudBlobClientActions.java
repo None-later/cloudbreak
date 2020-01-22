@@ -281,4 +281,41 @@ public class AzureCloudBlobClientActions extends AzureCloudBlobClient {
             throw new TestFailException(String.format("Azure Adls Gen 2 Blob couldn't process the call. So it has been returned the error: %s", e));
         }
     }
+
+    public void listSelectedDirectory(String baseLocation, String selectedDirectory, Boolean zeroContent) {
+        String containerName = getContainerName(baseLocation);
+        CloudBlobContainer cloudBlobContainer = getCloudBlobContainer(containerName);
+
+        try {
+            CloudBlobDirectory blobDirectory = cloudBlobContainer.getDirectoryReference(selectedDirectory);
+
+            for (ListBlobItem blob : blobDirectory.listBlobs()) {
+                String blobName = blob.getUri().getPath().split("/", 3)[2];
+                String blobUriPath = blob.getUri().getPath();
+
+                if (blob instanceof CloudBlob) {
+                    if (((CloudBlob) blob).exists()) {
+                        if (((CloudBlob) blob).getProperties().getLength() == 0 && !zeroContent) {
+                            throw new TestFailException(String.format("Azure Adls Gen 2 Blob: %s has 0 bytes of content!", ((CloudBlob) blob).getName()));
+                        } else {
+                            LOGGER.info("Azure Adls Gen 2 Blob is present with Name: %s and with bytes of content: %d at URI: %s",
+                                    ((CloudBlob) blob).getName(), ((CloudBlob) blob).getProperties().getLength(), blobUriPath);
+                        }
+                    } else {
+                        LOGGER.error("Azure Adls Gen 2 Blob storage is NOT present with name: {}", baseLocation);
+                        throw new TestFailException(String.format("Azure Adls Gen 2 Blob storage is NOT present with name: %s", baseLocation));
+                    }
+                } else {
+                    if (blobName.endsWith("/")) {
+                        blobName = blobName.replaceAll(".$", "");
+                    }
+                    CloudBlobDirectory subBlobDirectory = cloudBlobContainer.getDirectoryReference(blobName);
+                    listBlobsInDirectory(cloudBlobContainer, subBlobDirectory.getPrefix());
+                }
+            }
+        } catch (StorageException | URISyntaxException e) {
+            LOGGER.error("Azure Adls Gen 2 Blob couldn't process the call. So it has been returned with error!", e);
+            throw new TestFailException(String.format("Azure Adls Gen 2 Blob couldn't process the call. So it has been returned the error: %s", e));
+        }
+    }
 }

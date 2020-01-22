@@ -45,7 +45,7 @@ public class SdxCloudStorageTests extends BasicSdxTests {
                     return waitUtil.waitForSdxInstancesStatus(testDto, client, getSdxInstancesHealthyState());
                 })
                 .then((tc, testDto, client) -> {
-                    cloudFunctionality.cloudStorageListContainer(getBaseLocation(testDto));
+                    cloudFunctionality.cloudStorageListContainerDataLake(getBaseLocation(testDto));
                     return testDto;
                 })
                 .then((tc, testDto, client) -> {
